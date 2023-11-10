@@ -138,16 +138,18 @@ async def fetch_user_tds(user_id, force=False):
     if user_dict.get('td_mode', False) or force:
         return user_dict.get('user_tds', {})
     return {}
-    
-    
+
 def get_progress_bar_string(pct):
-    if isinstance(pct, str):
-        pct = float(pct.strip('%'))
+    pct = float(str(pct).strip('%'))
     p = min(max(pct, 0), 100)
-    cFull = int(p // 10)
+    cFull = int(p // 8)
+    cPart = int(p % 8 - 1)
     p_str = '●' * cFull
-    p_str += '○' * (10 - cFull)
-    return p_str
+    if cPart >= 0:
+        p_str += ['◐', '◑', '◒', '◓', '◔', '◕', '●'][cPart]
+    p_str += '○' * (12 - cFull)
+    return f"[{p_str}]"
+
     
 def source(self):
     if sender_chat := self.message.sender_chat:
@@ -173,7 +175,7 @@ def get_readable_message():
         msg += f"<b>✓ ғɪʟᴇ ɴᴀᴍᴇ</b> : <code>{escape(f'{download.name()}')}</code>\n"
         if download.status() not in [MirrorStatus.STATUS_SPLITTING, MirrorStatus.STATUS_SEEDING]:
             msg += f"\n<b>┌────❪ ᴏᴍɢ × ᴄʟᴏᴜᴅ ❫─────༻</b>"
-            msg += f"\n<b>├  {progress_bar(download.progress())} <code>{download.progress()}</code></b>"
+            msg += f"\n<b>├  {get_progress_bar(download.progress())} <code>{download.progress()}</code></b>"
             msg += f"\n<b>├  sᴛᴀᴛᴜs : <code>{download.status()}</code></b>"
             msg += f"\n<b>├  ᴅᴏɴᴇ : <code>{download.processed_bytes()} of {download.size()}</code></b>"
             msg += f"\n<b>├  sᴘᴇᴇᴅ : <code>{download.speed()}</code></b>"
