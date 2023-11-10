@@ -139,7 +139,7 @@ async def fetch_user_tds(user_id, force=False):
         return user_dict.get('user_tds', {})
     return {}
 
-def progress_bar(pct):
+def get_progress_bar_string(pct):
     pct = float(str(pct).strip('%'))
     p = min(max(pct, 0), 100)
     cFull = int(p // 8)
@@ -175,7 +175,7 @@ def get_readable_message():
         msg += f"<b>✓ ғɪʟᴇ ɴᴀᴍᴇ</b> : <code>{escape(f'{download.name()}')}</code>\n"
         if download.status() not in [MirrorStatus.STATUS_SPLITTING, MirrorStatus.STATUS_SEEDING]:
             msg += f"\n<b>┌────❪ ᴏᴍɢ × ᴄʟᴏᴜᴅ ❫─────༻</b>"
-            msg += f"\n<b>├  {progress_bar(download.progress())} <code>{download.progress()}</code></b>"
+            msg += f"\n<b>├  {get_progress_bar_string(download.progress())} <code>{download.progress()}</code></b>"
             msg += f"\n<b>├  sᴛᴀᴛᴜs : <code>{download.status()}</code></b>"
             msg += f"\n<b>├  ᴅᴏɴᴇ : <code>{download.processed_bytes()} of {download.size()}</code></b>"
             msg += f"\n<b>├  sᴘᴇᴇᴅ : <code>{download.speed()}</code></b>"
