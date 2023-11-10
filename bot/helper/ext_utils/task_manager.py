@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 from asyncio import Event
 
 from bot import OWNER_ID, config_dict, queued_dl, queued_up, non_queued_up, non_queued_dl, queue_dict_lock, LOGGER, user_data, download_dict
@@ -6,15 +5,13 @@ from bot.helper.mirror_utils.upload_utils.gdriveTools import GoogleDriveHelper
 from bot.helper.ext_utils.fs_utils import get_base_name, check_storage_threshold
 from bot.helper.ext_utils.bot_utils import get_user_tasks, sync_to_async, get_telegraph_list, get_readable_file_size, checking_access
 from bot.helper.telegram_helper.message_utils import forcesub, BotPm_check, user_info
-
+from bot.helper.telegram_helper.message_utils import isAdmin
 
 async def stop_duplicate_check(name, listener):
-    if (
-        not config_dict['STOP_DUPLICATE']
+    if (not config_dict['STOP_DUPLICATE']
         or listener.isLeech
         or listener.upPath != 'gd'
-        or listener.select
-    ):
+        or listener.select):
         return False, None
     LOGGER.info(f'Checking File/Folder if already in Drive: {name}')
     if listener.compress:
@@ -114,10 +111,12 @@ async def start_from_queued():
                     start_dl_from_queued(uid)
 
 
-async def limit_checker(size, listener, isTorrent=False, isMega=False, isDriveLink=False, isYtdlp=False):
-    LOGGER.info('Checking Size Limit of link/file/folder/tasks...')
+async def limit_checker(size, listener, isTorrent=False, isMega=False, isDriveLink=False, isYtdlp=False, isPlayList=None):
+    LOGGER.info('Checking limit')
     user_id = listener.message.from_user.id
     if user_id == OWNER_ID or user_id in user_data and user_data[user_id].get('is_sudo'):
+        return
+    if await isAdmin(listener.message):
         return
     limit_exceeded = ''
     if listener.isClone:
@@ -140,6 +139,9 @@ async def limit_checker(size, listener, isTorrent=False, isMega=False, isDriveLi
             limit = YTDLP_LIMIT * 1024**3
             if size > limit:
                 limit_exceeded = f'Ytdlp limit is {get_readable_file_size(limit)}'
+        if isPlayList != 0 and (PLAYLIST_LIMIT := config_dict['PLAYLIST_LIMIT']):
+            if isPlayList > PLAYLIST_LIMIT:
+                limit_exceeded = f'Playlist limit is {PLAYLIST_LIMIT}'
     elif isTorrent:
         if TORRENT_LIMIT := config_dict['TORRENT_LIMIT']:
             limit = TORRENT_LIMIT * 1024**3
@@ -154,42 +156,41 @@ async def limit_checker(size, listener, isTorrent=False, isMega=False, isDriveLi
             limit = LEECH_LIMIT * 1024**3
             if size > limit:
                 limit_exceeded = f'Leech limit is {get_readable_file_size(limit)}'
-        
-        if (STORAGE_THRESHOLD := config_dict['STORAGE_THRESHOLD']) and not listener.isClone:
+        if not listener.isClone:
             arch = any([listener.compress, listener.extract])
-            limit = STORAGE_THRESHOLD * 1024**3
+            limit = 3 * 1024**3
             acpt = await sync_to_async(check_storage_threshold, size, limit, arch)
             if not acpt:
-                limit_exceeded = f'You must leave {get_readable_file_size(limit)} free storage.'
-        
-        if (PLAYLIST_LIMIT := config_dict['PLAYLIST_LIMIT']):
-            limit_exceeded = f'Playlist limit is {PLAYLIST_LIMIT}'
-
+                limit_exceeded = 'You must leave 3GB free storage.'
     if limit_exceeded:
-        return f"{limit_exceeded}.\nYour file or folder size is {get_readable_file_size(size)}"
+        if size:
+            return f"{limit_exceeded}.\nYour file or folder size is {get_readable_file_size(size)}."
+        elif isPlayList != 0:
+            return f"{limit_exceeded}.\nYour playlist has {isPlayList} files."
 
 
 async def task_utils(message):
-    LOGGER.info('Checking Task Utilities ...')
     msg = []
     button = None
-
-    token_msg, button = await checking_access(message.from_user.id, button)
-    if token_msg is not None:
-        msg.append(token_msg)
+    user_id = message.from_user.id
+    token = config_dict['TOKEN_TIMEOUT']
+    admin = await isAdmin(message)
     if message.chat.type != message.chat.type.BOT:
         if ids := config_dict['FSUB_IDS']:
             _msg, button = await forcesub(message, ids, button)
             if _msg:
                 msg.append(_msg)
-        user_id = message.from_user.id
-        user_dict = user_data.get(user_id, {})
-        user = await user_info(message._client, message.from_user.id)
-        if not config_dict['TOKEN_TIMEOUT']:
-            if config_dict['BOT_PM'] or user_dict.get('bot_pm'):
-                _msg, button = await BotPm_check(message, button)
-                if _msg:
-                    msg.append(_msg)
+        if not token or (token and (admin or user_id == OWNER_ID or (user_id in user_data and user_data[user_id].get('is_sudo')))):
+            _msg, button = await BotPm_check(message, button)
+            if _msg:
+                msg.append(_msg)
+    if user_id == OWNER_ID or user_id in user_data and user_data[user_id].get('is_sudo'):
+        return msg, button
+    if admin:
+        return msg, button
+    token_msg, button = await checking_access(message.from_user.id, button)
+    if token_msg is not None:
+        msg.append(token_msg)
     if (bmax_tasks := config_dict['BOT_MAX_TASKS']) and len(download_dict) >= bmax_tasks:
         msg.append(f"Bot Max Tasks limit exceeded.\nBot max tasks limit is {bmax_tasks}.\nPlease wait for the completion of other tasks.")
     if (maxtask := config_dict['USER_MAX_TASKS']) and await get_user_tasks(message.from_user.id, maxtask):
