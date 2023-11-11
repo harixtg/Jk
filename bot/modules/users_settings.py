@@ -257,7 +257,7 @@ async def set_custom(client, message, pre_event, key, direct=False):
         await DbManager().update_user_data(user_id)
 
 
-async def set_thumb(client, message, pre_event, key, direct=False):
+async def set_thumb(client, message, pre_event, key):
     user_id = message.from_user.id
     handler_dict[user_id] = False
     path = "Thumbnails/"
@@ -269,7 +269,7 @@ async def set_thumb(client, message, pre_event, key, direct=False):
     await aioremove(photo_dir)
     update_user_ldata(user_id, 'thumb', des_dir)
     await message.delete()
-    await update_user_settings(pre_event, key, 'leech', msg=message, sdirect=direct)
+    await update_user_settings(pre_event, key, 'leech', msg=message)
     if DATABASE_URL:
         await DbManager().update_user_doc(user_id, 'thumb', des_dir)
 
