@@ -189,14 +189,23 @@ async def get_user_settings(from_user, key=None, edit_type=None, edit_mode=None)
     return text, button
 
 
-async def update_user_settings(query, key=None, edit_type=None, edit_mode=None, msg=None, sdirect=False):
-    msg, button = await get_user_settings(msg.from_user if sdirect else query.from_user, key, edit_type, edit_mode)
-    await editMessage(query if sdirect else query.message, msg, button)
+async def update_user_settings(query, key=None, edit_type=None, edit_mode=None, msg=None):
+    msg, button = await get_user_settings(query.from_user, key, edit_type, edit_mode)
+    user_id = query.from_user.id
+    thumbnail = f"Thumbnails/{user_id}.jpg"
+    if not ospath.exists(thumbnail):
+        thumbnail = 'https://graph.org/file/8787bc91517de490adf9c.jpg'
+    await editMessage(query.message, msg, button, thumbnail)
+
 
 @new_thread
 async def user_settings(client, message):
     msg, button = await get_user_settings(message.from_user)
-    x = await sendMessage(message, msg, button)
+    user_id = message.from_user.id
+    thumbnail = f"Thumbnails/{user_id}.jpg"
+    if not ospath.exists(thumbnail):
+        thumbnail = 'https://graph.org/file/8787bc91517de490adf9c.jpg'
+    x = await sendMessage(message, msg, button, thumbnail)
     await five_minute_del(message)
     await deleteMessage(x)
 
@@ -472,7 +481,7 @@ async def edit_user_settings(client, query):
         handler_dict[user_id] = False
         await query.answer()
         edit_mode = len(data) == 4
-        await update_user_settings(query, data[2], 'universal', edit_mode)
+        await update_user_settings(query, data[2], 'leech', edit_mode)
         if not edit_mode: return
         pfunc = partial(set_custom, pre_event=query, key=data[2])
         rfunc = partial(update_user_settings, query, data[2], 'leech')
